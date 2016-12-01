@@ -16,9 +16,11 @@ The system should have a minimum UI.
 */
 contract Raffle{
   //Public
-  //Total pop of the raffle
+  //Total pot of the raffle
   uint public balance;
+
   //Everyone who holds a ticket
+  address[] accounts;
   mapping(address => Ticket[]) public ticketHolders;
 
   //Private
@@ -28,7 +30,10 @@ contract Raffle{
   uint constant ticketPrice = 250 finney;
   Ticket winningNumber;
 
+  //Record which addresses purchased a ticket in our database
   event LogTicketPurchased(address publicAddress);
+  //Record who won the raffle in our database
+  event LogRaffleWinner(address publicAddress);
 
   // First 5 chosen from a group of 69 numbers.
   // 6th chosen from a set of 26 numbers.
@@ -44,26 +49,54 @@ contract Raffle{
 
   function Raffle(){
     //Constructor
+    hadPayout = false;
     winningNumber = Ticket({
-      first:53,
-      second:25,
-      third:40,
-      fourth:18,
-      fifth:61,
-      sixth:9
+      first:3,
+      second:63,
+      third:59,
+      fourth:17,
+      fifth:52,
+      sixth:15
     });
   }
 
+  //TODO: How can this be implemented?
   function transferTicketToUser(address user){
 
   }
 
-  function checkForWinner(){
+  function checkForWinner() returns (bool){
     //Check for hadPayout
     //count down and check for winner.
     //if winner, move winnings and exit.
     if(!hadPayout){
-
+      //Loop through all accounts
+      for(uint256 addr = 0; addr < accounts.length; addr++){
+        //Loop through all tickets that each account holds
+        for(uint256 ticket_number = 0; ticket_number < ticketHolders[accounts[addr]].length; ticket_number++){
+          if (ticketHolders[accounts[addr]][ticket_number].first == winningNumber.first &&
+                     ticketHolders[accounts[addr]][ticket_number].second == winningNumber.second &&
+                     ticketHolders[accounts[addr]][ticket_number].third == winningNumber.third &&
+                     ticketHolders[accounts[addr]][ticket_number].fourth == winningNumber.fourth &&
+                     ticketHolders[accounts[addr]][ticket_number].fifth == winningNumber.fifth &&
+                     ticketHolders[accounts[addr]][ticket_number].sixth == winningNumber.sixth){
+                       //We have a winner!
+                       address winner = accounts[addr];
+                       if (winner.send(balance - 25000*tx.gasprice)){
+                         //Log our winner
+                         LogRaffleWinner(winner);
+                         //Balance was transfered.  Delete balance and mark hadPayout as true;
+                         delete balance;
+                         hadPayout = true;
+                         return true;
+                       }else{
+                         return false;
+                       }
+           }
+        }
+      }
+      //We looped through everyone and didn't find a winner
+      return false;
     }
   }
 
@@ -84,6 +117,7 @@ contract Raffle{
           return false;
         }else{
           balance += msg.value;
+          accounts.push(msg.sender);
           ticketHolders[msg.sender].push(Ticket(
             {
               first: first,
